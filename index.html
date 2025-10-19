@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Responsive Ultimate Clicker</title>
+<style>
+/* --- Body & General Styles --- */
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #1f1c2c, #928dab);
+    color: #fff;
+    text-align: center;
+    padding: 15px;
+    overflow-x: hidden;
+    position: relative;
+    margin: 0;
+}
+h1 { font-size: 2em; text-shadow: 2px 2px #000; margin-bottom: 10px; }
+#score { font-size: 1.8em; margin: 15px 0; text-shadow: 1px 1px #000; }
+.info { font-size: 0.95em; margin: 5px 0; }
+
+/* --- Click Button --- */
+#clickBtn {
+    width: 130px;
+    height: 130px;
+    font-size: 1.1em;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #4caf50, #2e7d32);
+    color: #fff;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    border: none;
+    transition: transform 0.1s;
+}
+#clickBtn:active { transform: scale(1.2); }
+@media (min-width: 600px) { #clickBtn { width: 160px; height: 160px; font-size: 1.3em; } }
+
+/* --- Buttons --- */
+button {
+    padding: 12px 20px;
+    font-size: 1em;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    margin: 5px;
+    transition: transform 0.1s, box-shadow 0.2s;
+}
+button:hover { transform: scale(1.05); box-shadow: 0 0 15px #fff; }
+@media (min-width: 600px) { button { padding: 15px 25px; font-size: 1.1em; } }
+
+/* --- Shop --- */
+.shop { margin-top: 20px; }
+.item {
+    width: 90%;
+    max-width: 360px;
+    margin: 10px auto;
+    background: rgba(0,0,0,0.4);
+    padding: 12px;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: transform 0.3s;
+}
+.item:hover { transform: scale(1.02); }
+.item div { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; width: 100%; }
+.item img { width: 35px; height: 35px; margin-right: 5px; }
+
+/* --- Achievements --- */
+.achievement {
+    width: 90%;
+    max-width: 250px;
+    font-size: 0.9em;
+    background-color: #ff9800;
+    color: #000;
+    padding: 8px;
+    margin: 5px auto;
+    border-radius: 8px;
+    display: none;
+    animation: fadeIn 1s forwards;
+}
+@keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
+
+/* --- Prestige Button --- */
+.prestige-btn { background-color: #9c27b0; }
+.prestige-btn:hover { background-color: #7b1fa2; }
+
+/* --- Particle Styles --- */
+.particle {
+    position: absolute;
+    pointer-events: none;
+    user-select: none;
+    font-weight: bold;
+    animation: rise 1s forwards;
+}
+@keyframes rise {
+    0% { opacity: 1; transform: translate(0,0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--x), var(--y)) scale(0.5); }
+}
+
+/* --- Combo --- */
+#combo { font-size: 0.9em; }
+@media (min-width: 600px) { #combo { font-size: 1em; } }
+</style>
+</head>
+<body>
+
+<h1>Ultimate Clicker</h1>
+<div id="score">Score: 0</div>
+<div class="info">Points per click: <span id="ppc">1</span></div>
+<div class="info">Auto-clickers: <span id="autoCount">0</span></div>
+<div class="info">Prestige Points: <span id="prestigePoints">0</span></div>
+<div class="info">Combo: <span id="combo">x1</span></div>
+<button id="clickBtn">Click!</button>
+
+<div class="shop">
+    <h2>Shop</h2>
+    <div class="item">
+        <div><img src="https://i.imgur.com/TX5QY3c.png" alt="Auto Clicker"> Auto Clicker (+1/sec)</div>
+        <div>Cost: <span id="autoCost">100</span> <button onclick="buyAutoClicker()">Buy</button></div>
+    </div>
+    <div class="item">
+        <div><img src="https://i.imgur.com/GC9MhsR.png" alt="Golden Cursor"> Golden Cursor (+2/click)</div>
+        <div>Cost: <span id="cursorCost">150</span> <button onclick="buyGoldenCursor()">Buy</button></div>
+    </div>
+    <div class="item">
+        <div><img src="https://i.imgur.com/erC12Pu.png" alt="Multiplier"> Click Multiplier (x2)</div>
+        <div>Cost: <span id="multiplierCost">300</span> <button onclick="buyClickMultiplier()">Buy</button></div>
+    </div>
+    <div class="item">
+        <div><img src="https://i.imgur.com/6vMepPl.png" alt="Mega Click"> Mega Click (+5)</div>
+        <div>Cost: <span id="megaCost">600</span> <button onclick="buyMegaClick()">Buy</button></div>
+    </div>
+    <div class="item">
+        <strong>Prestige / Rebirth</strong><br>
+        <button class="prestige-btn" onclick="prestige()">Prestige</button>
+    </div>
+</div>
+
+<h2>Achievements</h2>
+<div id="achievements"></div>
+
+<audio id="clickSound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
+<audio id="buySound" src="https://www.soundjay.com/button/button-3.mp3"></audio>
+<audio id="prestigeSound" src="https://www.soundjay.com/misc/success-bell-01.mp3"></audio>
+
+<script>
+// --- Game Variables ---
+let score = 0, pointsPerClick = 1, autoClickers = 0;
+let autoClickerCost = 100, goldenCursorCost = 150, multiplierCost = 300, megaCost = 600;
+let prestigePoints = 0, prestigeBonus = 0;
+let combo = 1, lastClickTime = 0;
+
+// --- DOM Elements ---
+const scoreEl = document.getElementById("score");
+const ppcEl = document.getElementById("ppc");
+const autoCountEl = document.getElementById("autoCount");
+const autoCostEl = document.getElementById("autoCost");
+const cursorCostEl = document.getElementById("cursorCost");
+const multiplierCostEl = document.getElementById("multiplierCost");
+const megaCostEl = document.getElementById("megaCost");
+const prestigePointsEl = document.getElementById("prestigePoints");
+const achievementsEl = document.getElementById("achievements");
+const comboEl = document.getElementById("combo");
+const clickBtn = document.getElementById("clickBtn");
+const clickSound = document.getElementById("clickSound");
+const buySound = document.getElementById("buySound");
+const prestigeSound = document.getElementById("prestigeSound");
+
+// --- Particle System ---
+function createParticle(x, y, text="+1") {
+    const particle = document.createElement("div");
+    particle.className = "particle";
+    particle.style.left = x + "px";
+    particle.style.top = y + "px";
+    particle.style.color = `hsl(${Math.random()*360},100%,70%)`;
+    const size = Math.random()*15 + 10;
+    particle.style.fontSize = size + "px";
+    const angle = Math.random()*2*Math.PI;
+    const distance = Math.random()*60+30;
+    particle.style.setProperty("--x", `${Math.cos(angle)*distance}px`);
+    particle.style.setProperty("--y", `${Math.sin(angle)*distance-30}px`);
+    particle.textContent = text;
+    document.body.appendChild(particle);
+    setTimeout(()=>particle.remove(),1000);
+}
+
+// --- Click Handler ---
+clickBtn.addEventListener("click", e=>{
+    const now = Date.now();
+    if(now - lastClickTime < 1000) combo = Math.min(combo + 0.1, 5);
+    else combo = 1;
+    lastClickTime = now;
+    comboEl.textContent = "x" + combo.toFixed(1);
+
+    const points = Math.floor((pointsPerClick + prestigeBonus) * combo);
+    score += points;
+    clickSound.play();
+    createParticle(e.clientX, e.clientY, "+"+points);
+    updateUI();
+    checkAchievements();
+});
+
+// --- Shop Functions ---
+function buyAutoClicker(){ if(score>=autoClickerCost){score-=autoClickerCost;autoClickers++;autoClickerCost=Math.floor(autoClickerCost*1.5);buySound.play();createParticle(clickBtn.offsetLeft+50,clickBtn.offsetTop,"Auto+1/s");updateUI();}else alert("Not enough points!");}
+function buyGoldenCursor(){ if(score>=goldenCursorCost){score-=goldenCursorCost;pointsPerClick+=2;goldenCursorCost=Math.floor(goldenCursorCost*1.7);buySound.play();createParticle(clickBtn.offsetLeft+50,clickBtn.offsetTop,"PPC+2");updateUI();}else alert("Not enough points!");}
+function buyClickMultiplier(){ if(score>=multiplierCost){score-=multiplierCost;pointsPerClick*=2;multiplierCost=Math.floor(multiplierCost*2);buySound.play();createParticle(clickBtn.offsetLeft+50,clickBtn.offsetTop,"x2 PPC");updateUI();}else alert("Not enough points!");}
+function buyMegaClick(){ if(score>=megaCost){score-=megaCost;pointsPerClick+=5;megaCost=Math.floor(megaCost*2);buySound.play();createParticle(clickBtn.offsetLeft+50,clickBtn.offsetTop,"+5 PPC");updateUI();}else alert("Not enough points!");}
+
+// --- Prestige ---
+function prestige(){
+    if(score>=1000){
+        prestigePoints++;
+        prestigeBonus += Math.floor(prestigePoints*0.5);
+        score=0;pointsPerClick=1;autoClickers=0;autoClickerCost=100;
+        goldenCursorCost=150;multiplierCost=300;megaCost=600;
+        prestigeSound.play();createParticle(clickBtn.offsetLeft+50,clickBtn.offsetTop,"Prestige+1");
+        alert("Prestige! Total points: "+prestigePoints+" Bonus per click: "+prestigeBonus);
+        updateUI();
+    } else alert("Need at least 1000 points to prestige!");
+}
+
+// --- UI Update ---
+function updateUI(){
+    scoreEl.textContent="Score: "+score;
+    ppcEl.textContent=pointsPerClick+" + "+prestigeBonus;
+    autoCountEl.textContent=autoClickers;
+    autoCostEl.textContent=autoClickerCost;
+    cursorCostEl.textContent=goldenCursorCost;
+    multiplierCostEl.textContent=multiplierCost;
+    megaCostEl.textContent=megaCost;
+    prestigePointsEl.textContent=prestigePoints;
+    saveGame();
+}
+
+// --- Auto-clicker ---
+setInterval(()=>{score+=autoClickers+prestigeBonus;updateUI();checkAchievements();},1000);
+
+// --- Achievements ---
+function checkAchievements(){
+    const achs=[
+        {id:1,text:"Reach 100 points!",condition:()=>score>=100},
+        {id:2,text:"Buy first Auto Clicker!",condition:()=>autoClickers>=1},
+        {id:3,text:"Score 1000 points!",condition:()=>score>=1000},
+        {id:4,text:"Prestige for first time!",condition:()=>prestigePoints>=1},
+        {id:5,text:"Buy Mega Click!",condition:()=>pointsPerClick>=5}
+    ];
+    achs.forEach(a=>{
+        if(a.condition() && !document.getElementById("ach"+a.id)){
+            const div=document.createElement("div");
+            div.id="ach"+a.id;
+            div.className="achievement";
+            div.textContent="🏆 "+a.text;
+            achievementsEl.appendChild(div);
+            div.style.display="block";
+        }
+    });
+}
+
+// --- Save/Load ---
+function saveGame(){
+    const saveData={score,pointsPerClick,autoClickers,autoClickerCost,goldenCursorCost,multiplierCost,megaCost,prestigePoints,prestigeBonus};
+    localStorage.setItem("clickerSave",JSON.stringify(saveData));
+}
+function loadGame(){
+    const saveData=JSON.parse(localStorage.getItem("clickerSave"));
+    if(saveData){Object.assign(window,saveData);}
+}
+loadGame();updateUI();checkAchievements();
+</script>
+</body>
+</html>
